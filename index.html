@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'">
+<title>batt-pack</title>
+<link data-trunk rel="rust" href="crates/bp_web/Cargo.toml">
+<link data-trunk rel="copy-file" href="web/boot.js">
+<style>
+:root { color-scheme: light dark; --bg: #fafafa; --fg: #1d1d1f; --card: #fff; --line: #ddd; --accent: #2f6fbd; }
+@media (prefers-color-scheme: dark) { :root { --bg: #141518; --fg: #e8e8ea; --card: #1e2025; --line: #383b42; --accent: #6ea8ff; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 system-ui, sans-serif; }
+main { max-width: 960px; margin: 0 auto; padding: 16px; }
+header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+h1 { font-size: 1.4rem; margin: 0 0 4px; }
+h2 { font-size: 1.05rem; margin: 0 0 10px; color: var(--accent); }
+.sub { margin: 0 0 16px; opacity: .8; }
+section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-bottom: 14px; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 680px) { .cols { grid-template-columns: 1fr; } }
+.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 12px; }
+label { display: flex; flex-direction: column; font-size: .85rem; gap: 3px; }
+input, select, button { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-width: 0; }
+button { cursor: pointer; white-space: nowrap; }
+table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); font-size: .9rem; }
+th { font-weight: 500; opacity: .85; }
+.list { display: block; overflow-x: auto; } .list td { white-space: nowrap; }
+.verdict { margin-top: 10px; padding: 8px 10px; border-radius: 6px; font-weight: 600; }
+.ok { background: #2e8b5733; } .tight { background: #e0a00033; } .over { background: #d0303033; }
+canvas { width: 100%; display: block; color: var(--fg); }
+footer { font-size: .85rem; opacity: .8; }
+</style>
+</head>
+<body>
+<main id="app">
+<header>
+  <div><h1 data-i18n="title">Robot battery pack planner</h1><p class="sub" data-i18n="subtitle"></p></div>
+  <button type="button" id="lang">한국어</button>
+</header>
+<div class="cols">
+<section>
+  <h2 data-i18n="sec_cell">Cell + pack</h2>
+  <div class="fields">
+    <label><span data-i18n="chem"></span><select id="chem"><option>Li-ion NMC</option><option>LiFePO4</option><option>LiPo</option></select></label>
+    <label><span data-i18n="preset"></span><select id="preset"><option data-i18n="p18650">generic 18650</option><option data-i18n="p21700">generic 21700</option></select></label>
+    <label><span data-i18n="v_nom"></span><input id="v_nom" type="number" step="0.01" inputmode="decimal"></label>
+    <label><span data-i18n="v_full"></span><input id="v_full" type="number" step="0.01" inputmode="decimal"></label>
+    <label><span data-i18n="v_empty"></span><input id="v_empty" type="number" step="0.01" inputmode="decimal"></label>
+    <label><span data-i18n="cap"></span><input id="cap" type="number" step="0.1" min="0" inputmode="decimal"></label>
+    <label><span data-i18n="maxc"></span><input id="maxc" type="number" step="0.1" min="0" inputmode="decimal"></label>
+    <label><span data-i18n="ir"></span><input id="ir" type="number" step="1" min="0" inputmode="decimal"></label>
+    <label><span data-i18n="mass"></span><input id="mass" type="number" step="1" min="0" inputmode="decimal"></label>
+    <label><span data-i18n="s"></span><input id="s" type="number" min="1" max="99" value="4" inputmode="numeric"></label>
+    <label><span data-i18n="p"></span><input id="p" type="number" min="1" max="99" value="2" inputmode="numeric"></label>
+    <label><span data-i18n="ovh"></span><input id="ovh" type="number" step="1" min="0" value="15" inputmode="decimal"></label>
+  </div>
+  <div id="pack_out"></div>
+</section>
+<section>
+  <h2 data-i18n="sec_load">Load + runtime</h2>
+  <div class="fields">
+    <label><span data-i18n="avg"></span><input id="avg" type="number" step="1" min="0" value="50" inputmode="decimal"></label>
+    <label><span data-i18n="peak"></span><input id="peak" type="number" step="1" min="0" value="150" inputmode="decimal"></label>
+    <label><span data-i18n="dod"></span><input id="dod" type="number" step="1" min="0" max="100" value="80" inputmode="decimal"></label>
+    <label><span data-i18n="eff"></span><input id="eff" type="number" step="0.01" min="0.01" max="1" value="0.95" inputmode="decimal"></label>
+  </div>
+  <div id="load_out"></div>
+  <div id="verdict"></div>
+</section>
+</div>
+<section>
+  <h2 data-i18n="sec_sugg">Suggest S×P</h2>
+  <div class="fields">
+    <label><span data-i18n="tvmin"></span><input id="tvmin" type="number" step="0.1" value="12" inputmode="decimal"></label>
+    <label><span data-i18n="tvmax"></span><input id="tvmax" type="number" step="0.1" value="26" inputmode="decimal"></label>
+    <label><span data-i18n="trun"></span><input id="trun" type="number" step="1" min="0" value="60" inputmode="decimal"></label>
+  </div>
+  <div id="sugg_out"></div>
+</section>
+<section>
+  <h2 data-i18n="sec_grid">Cell grid</h2>
+  <canvas id="grid" height="120"></canvas>
+</section>
+<footer><p data-i18n="disclaimer">Estimates only — follow cell datasheets and use a proper BMS.</p><p>MIT · batt-pack contributors</p></footer>
+</main>
+</body>
+</html>
