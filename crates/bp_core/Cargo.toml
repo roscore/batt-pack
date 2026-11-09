@@ -1,0 +1,8 @@
+[package]
+name = "bp_core"
+description = "Battery pack arithmetic: S x P pack, runtime, verdict, S x P search"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]

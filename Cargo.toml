@@ -1,0 +1,14 @@
+[workspace]
+members = ["crates/bp_core", "crates/bp_web"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+version = "0.1.0"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
